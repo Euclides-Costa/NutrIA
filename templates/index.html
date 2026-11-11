@@ -1,0 +1,155 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutrIA - Assistente Esportivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 h-screen flex items-center justify-center font-sans">
+
+    <!-- Container Principal -->
+    <div class="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden h-[90vh] flex flex-col">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 text-white p-4 flex items-center shadow-md z-10">
+            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl mr-3 shadow-inner">🤖</div>
+            <div>
+                <h1 class="font-bold text-lg">NutrIA</h1>
+                <p class="text-xs text-blue-200">Seu nutricionista esportivo de IA</p>
+            </div>
+        </div>
+
+        <!-- Tela de Onboarding (Oculta se já tiver perfil) -->
+        <div id="onboarding-screen" class="flex-1 p-8 overflow-y-auto {% if not precisa_onboarding %}hidden{% endif %}">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Vamos criar seu perfil!</h2>
+            <form id="form-perfil" class="space-y-4">
+                <div><label class="text-sm font-semibold text-gray-600">Nome</label><input type="text" id="nome" required class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm font-semibold text-gray-600">Idade</label><input type="number" id="idade" required class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></div>
+                    <div><label class="text-sm font-semibold text-gray-600">Peso (kg)</label><input type="number" step="0.1" id="peso" required class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm font-semibold text-gray-600">Altura (cm)</label><input type="number" id="altura" required class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></div>
+                    <div>
+                        <label class="text-sm font-semibold text-gray-600">Objetivo</label>
+                        <select id="objetivo" class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="emagrecer">Emagrecer</option>
+                            <option value="manter">Manter o peso</option>
+                            <option value="ganhar">Ganho de Massa</option>
+                        </select>
+                    </div>
+                </div>
+                <div><label class="text-sm font-semibold text-gray-600">Restrições Alimentares (Opcional)</label><input type="text" id="restricoes" placeholder="Ex: intolerância a lactose, vegano" class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition mt-4">Salvar e Começar</button>
+            </form>
+        </div>
+
+        <!-- Tela de Chat (Oculta se não tiver perfil) -->
+        <div id="chat-screen" class="flex-1 flex flex-col {% if precisa_onboarding %}hidden{% endif %}">
+            
+            <!-- Mensagens -->
+            <div id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
+                <div class="flex items-start">
+                    <div class="bg-blue-100 text-blue-900 p-3 rounded-tr-xl rounded-bl-xl rounded-br-xl max-w-[80%] shadow-sm">
+                        Olá{% if perfil %}, <b>{{ perfil.nome }}</b>{% endif %}! Relate seu dia. O que você comeu fora do plano e como foi o treino hoje?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Box -->
+            <div class="p-4 bg-white border-t flex items-center">
+                <input type="text" id="mensagem-input" placeholder="Ex: Fiz um treino pesado e comi 200g de carne moída no almoço..." class="flex-1 p-3 border rounded-l-lg outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="btn-enviar" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-r-lg font-bold transition">Enviar</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Javascript Front-End -->
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const inputMsg = document.getElementById('mensagem-input');
+        const btnEnviar = document.getElementById('btn-enviar');
+
+        // Lógica de Cadastro (Onboarding)
+        document.getElementById('form-perfil')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const dados = {
+                nome: document.getElementById('nome').value,
+                idade: document.getElementById('idade').value,
+                peso: document.getElementById('peso').value,
+                altura: document.getElementById('altura').value,
+                objetivo: document.getElementById('objetivo').value,
+                restricoes: document.getElementById('restricoes').value
+            };
+
+            await fetch('/api/onboarding', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(dados)
+            });
+
+            window.location.reload(); // Recarrega a página para entrar no chat
+        });
+
+        // Função para adicionar balões de mensagem no chat
+        function adicionarMensagem(texto, remetente) {
+            const div = document.createElement('div');
+            div.className = remetente === 'usuario' ? 'flex items-start justify-end' : 'flex items-start';
+            
+            const balao = document.createElement('div');
+            balao.className = remetente === 'usuario' 
+                ? 'bg-blue-600 text-white p-3 rounded-tl-xl rounded-bl-xl rounded-br-xl max-w-[80%] shadow-sm'
+                : 'bg-blue-100 text-blue-900 p-3 rounded-tr-xl rounded-bl-xl rounded-br-xl max-w-[80%] shadow-sm';
+            
+            balao.innerHTML = texto;
+            div.appendChild(balao);
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Lógica de envio de mensagem para o Bot
+        async function enviarMensagem() {
+            const msg = inputMsg.value.trim();
+            if (!msg) return;
+
+            adicionarMensagem(msg, 'usuario');
+            inputMsg.value = '';
+            
+            // Indicador de "Digitando"
+            const idCarregando = "loading-" + Date.now();
+            const divLoad = document.createElement('div');
+            divLoad.id = idCarregando;
+            divLoad.className = 'flex items-start';
+            divLoad.innerHTML = `<div class="bg-gray-200 text-gray-500 p-3 rounded-tr-xl rounded-bl-xl rounded-br-xl text-sm italic">NutrIA está calculando...</div>`;
+            chatBox.appendChild(divLoad);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mensagem: msg })
+                });
+                
+                const data = await response.json();
+                document.getElementById(idCarregando).remove();
+
+                if (data.erro) {
+                    adicionarMensagem(`<b>Erro:</b> ${data.erro}`, 'bot');
+                } else {
+                    adicionarMensagem(data.resposta, 'bot');
+                }
+            } catch (err) {
+                document.getElementById(idCarregando).remove();
+                adicionarMensagem("Ocorreu um erro ao conectar com o servidor.", 'bot');
+            }
+        }
+
+        btnEnviar?.addEventListener('click', enviarMensagem);
+        inputMsg?.addEventListener('keypress', (e) => { if (e.key === 'Enter') enviarMensagem(); });
+    </script>
+</body>
+</html>
